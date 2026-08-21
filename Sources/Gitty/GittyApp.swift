@@ -79,7 +79,7 @@ private struct GittyMenu: View {
                 .buttonStyle(.plain)
                 .keyboardShortcut("q")
             }
-            .padding(.bottom, 2)
+            .padding(.bottom, 6)
         }
         .task { viewModel.start() }
     }
