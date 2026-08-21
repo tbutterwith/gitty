@@ -67,7 +67,7 @@ private struct GittyMenu: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 14)
-                .padding(.vertical, 6)
+                .padding(.vertical, 3)
 
                 SettingsLink {
                     MenuActionLabel("Preferences…")
@@ -82,7 +82,7 @@ private struct GittyMenu: View {
                 .buttonStyle(.plain)
                 .keyboardShortcut("q")
             }
-            .padding(.bottom, 6)
+            .padding(.bottom, 2)
         }
         .task { viewModel.start() }
     }
@@ -105,7 +105,7 @@ private struct GittyMenu: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 2) {
+                LazyVStack(alignment: .leading, spacing: 0) {
                     if !attention.isEmpty {
                         PullRequestSection(
                             title: "Needs attention", pullRequests: attention, openPullRequest: openPullRequest,
@@ -125,7 +125,7 @@ private struct GittyMenu: View {
                         )
                     }
                 }
-                .padding(.vertical, 2)
+                .padding(.vertical, 0)
             }
         }
     }
@@ -149,7 +149,7 @@ private struct MenuActionLabel: View {
         }
         .contentShape(Rectangle())
         .padding(.horizontal, 14)
-        .padding(.vertical, 7)
+        .padding(.vertical, 4)
     }
 }
 
@@ -166,8 +166,7 @@ private struct PullRequestSection: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 14)
-                .padding(.top, 4)
-                .padding(.bottom, 1)
+                .padding(.top, 3)
             ForEach(pullRequests) { pullRequest in
                 HStack(spacing: 0) {
                     Button { openPullRequest(pullRequest) } label: {
@@ -182,7 +181,7 @@ private struct PullRequestSection: View {
                         } label: {
                             Image(systemName: isAcknowledged(pullRequest) ? "checkmark.circle.fill" : "checkmark.circle")
                                 .foregroundStyle(isAcknowledged(pullRequest) ? .secondary : .primary)
-                                .frame(width: 28, height: 28)
+                                .frame(width: 24, height: 24)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
@@ -199,11 +198,11 @@ private struct PullRequestRow: View {
     let pullRequest: PullRequest
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .top, spacing: 8) {
             Image(systemName: pullRequest.ciState.symbol)
                 .foregroundStyle(pullRequest.ciState == .failing ? .red : pullRequest.ciState == .passing ? .green : .secondary)
                 .frame(width: 18)
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 1) {
                 Text("\(pullRequest.repository) #\(pullRequest.number)")
                     .font(.caption).foregroundStyle(.secondary)
                 Text(pullRequest.title)
@@ -223,7 +222,7 @@ private struct PullRequestRow: View {
         }
         .contentShape(Rectangle())
         .padding(.horizontal, 14)
-        .padding(.vertical, 4)
+        .padding(.vertical, 2)
     }
 }
 
