@@ -69,10 +69,7 @@ private struct GittyMenu: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 3)
 
-                SettingsLink {
-                    MenuActionLabel("Preferences…")
-                }
-                .buttonStyle(.plain)
+                GittySettingsMenuAction()
 
                 Button {
                     NSApp.terminate(nil)
@@ -150,6 +147,20 @@ private struct MenuActionLabel: View {
         .contentShape(Rectangle())
         .padding(.horizontal, 14)
         .padding(.vertical, 4)
+    }
+}
+
+private struct GittySettingsMenuAction: View {
+    @Environment(\.openSettings) private var openSettings
+
+    var body: some View {
+        Button {
+            NSApp.activate(ignoringOtherApps: true)
+            openSettings()
+        } label: {
+            MenuActionLabel("Preferences…")
+        }
+        .buttonStyle(.plain)
     }
 }
 
