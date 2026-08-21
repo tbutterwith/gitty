@@ -191,62 +191,56 @@ private struct PullRequestMenuItem: View {
     }
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 0) {
+        ZStack {
             Button { openPullRequest(pullRequest) } label: {
-                PullRequestRow(pullRequest: pullRequest)
+                Color.clear
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .frame(maxWidth: .infinity, alignment: .leading)
 
-            if canAcknowledge, let toggleAcknowledgement {
-                Button {
-                    toggleAcknowledgement(pullRequest)
-                } label: {
-                    Image(systemName: isAcknowledged ? "checkmark.circle.fill" : "checkmark.circle")
-                        .foregroundStyle(isAcknowledged ? .secondary : .primary)
-                        .frame(width: 24, height: 24)
-                        .contentShape(Rectangle())
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: pullRequest.ciState.symbol)
+                    .foregroundStyle(pullRequest.ciState == .failing ? .red : pullRequest.ciState == .passing ? .green : .secondary)
+                    .frame(width: 18)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("\(pullRequest.repository) #\(pullRequest.number)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(pullRequest.title)
+                        .lineLimit(1)
+                        .multilineTextAlignment(.leading)
+                    HStack(spacing: 6) {
+                        if isHovered, canAcknowledge, let toggleAcknowledgement {
+                            Button {
+                                toggleAcknowledgement(pullRequest)
+                            } label: {
+                                Image(systemName: isAcknowledged ? "checkmark.circle.fill" : "checkmark.circle")
+                                    .foregroundStyle(isAcknowledged ? .secondary : .primary)
+                                    .frame(width: 18, height: 14)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .help(isAcknowledged ? "Mark as unacknowledged" : "Acknowledge")
+                            .accessibilityLabel(isAcknowledged ? "Mark \(pullRequest.title) as unacknowledged" : "Acknowledge \(pullRequest.title)")
+                        } else {
+                            if pullRequest.isDraft { Text("Draft") }
+                            Text(pullRequest.ciState.label)
+                            Text("·")
+                            Text(pullRequest.reviewState.label)
+                        }
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
                 }
-                .buttonStyle(.plain)
-                .help(isAcknowledged ? "Mark as unacknowledged" : "Acknowledge")
-                .accessibilityLabel(isAcknowledged ? "Mark \(pullRequest.title) as unacknowledged" : "Acknowledge \(pullRequest.title)")
-                .opacity(isHovered ? 1 : 0)
-                .allowsHitTesting(isHovered)
+                Spacer(minLength: 0)
             }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 2)
+            .allowsHitTesting(canAcknowledge && isHovered)
         }
-        .onHover { isHovered = $0 }
-    }
-}
-
-private struct PullRequestRow: View {
-    let pullRequest: PullRequest
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            Image(systemName: pullRequest.ciState.symbol)
-                .foregroundStyle(pullRequest.ciState == .failing ? .red : pullRequest.ciState == .passing ? .green : .secondary)
-                .frame(width: 18)
-            VStack(alignment: .leading, spacing: 1) {
-                Text("\(pullRequest.repository) #\(pullRequest.number)")
-                    .font(.caption).foregroundStyle(.secondary)
-                Text(pullRequest.title)
-                    .lineLimit(1)
-                    .multilineTextAlignment(.leading)
-                HStack(spacing: 6) {
-                    if pullRequest.isDraft { Text("Draft") }
-                    Text(pullRequest.ciState.label)
-                    Text("·")
-                    Text(pullRequest.reviewState.label)
-                }
-                .font(.caption2).foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 0)
-            Image(systemName: "arrow.up.right")
-                .font(.caption).foregroundStyle(.tertiary)
-        }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
-        .padding(.horizontal, 14)
-        .padding(.vertical, 2)
+        .onHover { isHovered = $0 }
     }
 }
 
