@@ -125,7 +125,7 @@ private struct GittyMenu: View {
                         )
                     }
                 }
-                .padding(.vertical, 0)
+                .padding(.top, 7)
             }
         }
     }
@@ -168,29 +168,53 @@ private struct PullRequestSection: View {
                 .padding(.horizontal, 14)
                 .padding(.top, 3)
             ForEach(pullRequests) { pullRequest in
-                HStack(spacing: 0) {
-                    Button { openPullRequest(pullRequest) } label: {
-                        PullRequestRow(pullRequest: pullRequest)
-                    }
-                    .buttonStyle(.plain)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                    if pullRequest.needsAttention, let isAcknowledged, let toggleAcknowledgement {
-                        Button {
-                            toggleAcknowledgement(pullRequest)
-                        } label: {
-                            Image(systemName: isAcknowledged(pullRequest) ? "checkmark.circle.fill" : "checkmark.circle")
-                                .foregroundStyle(isAcknowledged(pullRequest) ? .secondary : .primary)
-                                .frame(width: 24, height: 24)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .help(isAcknowledged(pullRequest) ? "Mark as unacknowledged" : "Acknowledge")
-                        .accessibilityLabel(isAcknowledged(pullRequest) ? "Mark \(pullRequest.title) as unacknowledged" : "Acknowledge \(pullRequest.title)")
-                    }
-                }
+                PullRequestMenuItem(
+                    pullRequest: pullRequest,
+                    openPullRequest: openPullRequest,
+                    isAcknowledged: isAcknowledged?(pullRequest) ?? false,
+                    toggleAcknowledgement: toggleAcknowledgement
+                )
             }
         }
+    }
+}
+
+private struct PullRequestMenuItem: View {
+    let pullRequest: PullRequest
+    let openPullRequest: (PullRequest) -> Void
+    let isAcknowledged: Bool
+    let toggleAcknowledgement: ((PullRequest) -> Void)?
+    @State private var isHovered = false
+
+    private var canAcknowledge: Bool {
+        pullRequest.needsAttention && toggleAcknowledgement != nil
+    }
+
+    var body: some View {
+        HStack(alignment: .bottom, spacing: 0) {
+            Button { openPullRequest(pullRequest) } label: {
+                PullRequestRow(pullRequest: pullRequest)
+            }
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            if canAcknowledge, let toggleAcknowledgement {
+                Button {
+                    toggleAcknowledgement(pullRequest)
+                } label: {
+                    Image(systemName: isAcknowledged ? "checkmark.circle.fill" : "checkmark.circle")
+                        .foregroundStyle(isAcknowledged ? .secondary : .primary)
+                        .frame(width: 24, height: 24)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(isAcknowledged ? "Mark as unacknowledged" : "Acknowledge")
+                .accessibilityLabel(isAcknowledged ? "Mark \(pullRequest.title) as unacknowledged" : "Acknowledge \(pullRequest.title)")
+                .opacity(isHovered ? 1 : 0)
+                .allowsHitTesting(isHovered)
+            }
+        }
+        .onHover { isHovered = $0 }
     }
 }
 
