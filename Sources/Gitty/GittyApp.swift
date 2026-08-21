@@ -199,9 +199,23 @@ private struct PullRequestMenuItem: View {
             .buttonStyle(.plain)
 
             HStack(alignment: .top, spacing: 8) {
-                Image(systemName: pullRequest.ciState.symbol)
-                    .foregroundStyle(pullRequest.ciState == .failing ? .red : pullRequest.ciState == .passing ? .green : .secondary)
-                    .frame(width: 18)
+                if isHovered, canAcknowledge, let toggleAcknowledgement {
+                    Button {
+                        toggleAcknowledgement(pullRequest)
+                    } label: {
+                        Image(systemName: isAcknowledged ? "checkmark.circle.fill" : "checkmark.circle")
+                            .foregroundStyle(isAcknowledged ? .secondary : .primary)
+                            .frame(width: 18, height: 18)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help(isAcknowledged ? "Mark as unacknowledged" : "Acknowledge")
+                    .accessibilityLabel(isAcknowledged ? "Mark \(pullRequest.title) as unacknowledged" : "Acknowledge \(pullRequest.title)")
+                } else {
+                    Image(systemName: pullRequest.ciState.symbol)
+                        .foregroundStyle(pullRequest.ciState == .failing ? .red : pullRequest.ciState == .passing ? .green : .secondary)
+                        .frame(width: 18, height: 18)
+                }
                 VStack(alignment: .leading, spacing: 1) {
                     Text("\(pullRequest.repository) #\(pullRequest.number)")
                         .font(.caption)
@@ -210,24 +224,10 @@ private struct PullRequestMenuItem: View {
                         .lineLimit(1)
                         .multilineTextAlignment(.leading)
                     HStack(spacing: 6) {
-                        if isHovered, canAcknowledge, let toggleAcknowledgement {
-                            Button {
-                                toggleAcknowledgement(pullRequest)
-                            } label: {
-                                Image(systemName: isAcknowledged ? "checkmark.circle.fill" : "checkmark.circle")
-                                    .foregroundStyle(isAcknowledged ? .secondary : .primary)
-                                    .frame(width: 18, height: 14)
-                                    .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                            .help(isAcknowledged ? "Mark as unacknowledged" : "Acknowledge")
-                            .accessibilityLabel(isAcknowledged ? "Mark \(pullRequest.title) as unacknowledged" : "Acknowledge \(pullRequest.title)")
-                        } else {
-                            if pullRequest.isDraft { Text("Draft") }
-                            Text(pullRequest.ciState.label)
-                            Text("·")
-                            Text(pullRequest.reviewState.label)
-                        }
+                        if pullRequest.isDraft { Text("Draft") }
+                        Text(pullRequest.ciState.label)
+                        Text("·")
+                        Text(pullRequest.reviewState.label)
                     }
                     .font(.caption2)
                     .foregroundStyle(.secondary)
