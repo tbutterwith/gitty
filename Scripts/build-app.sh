@@ -12,6 +12,7 @@ cp "${project_dir}/App/Info.plist" "${app_dir}/Contents/Info.plist"
 cp "${project_dir}/.build/release/Gitty" "${app_dir}/Contents/MacOS/Gitty"
 mkdir -p "${app_dir}/Contents/Resources"
 cp "${project_dir}/App/Assets/Gitty.icns" "${app_dir}/Contents/Resources/Gitty.icns"
+cp "${project_dir}/App/Assets/GittyChime.aiff" "${app_dir}/Contents/Resources/GittyChime.aiff"
 codesign --force --sign - "${app_dir}"
 
 print "Built ${app_dir}"
