@@ -38,6 +38,27 @@ final class GittyTests: XCTestCase {
         XCTAssertNotEqual(initial.attentionFingerprint, later.attentionFingerprint)
     }
 
+    func testRepositoryFiltersExcludeExactRepositoriesAndOwnerNamespaces() {
+        let personal = makePullRequest(id: "personal", repository: "tbutterwith/dot-journal", failed: [], feedback: [], reviewRequested: false)
+        let enterprise = makePullRequest(id: "enterprise", repository: "veedstudio/app", failed: [], feedback: [], reviewRequested: false)
+        let otherPersonal = makePullRequest(id: "other-personal", repository: "tbutterwith/gitty", failed: [], feedback: [], reviewRequested: false)
+
+        XCTAssertEqual(
+            filteredPullRequests([personal, enterprise, otherPersonal], excluding: ["tbutterwith/dot-journal"]).map(\.id),
+            ["enterprise", "other-personal"]
+        )
+        XCTAssertEqual(
+            filteredPullRequests([personal, enterprise, otherPersonal], excluding: ["tbutterwith/*"]).map(\.id),
+            ["enterprise"]
+        )
+    }
+
+    func testRepositoryFiltersAreCaseInsensitive() {
+        let pullRequest = makePullRequest(id: "1", repository: "VeedStudio/App", failed: [], feedback: [], reviewRequested: false)
+
+        XCTAssertTrue(filteredPullRequests([pullRequest], excluding: ["veedstudio/*"]).isEmpty)
+    }
+
     func testGhClientDecodesAndMergesTheTwoQueries() async throws {
         let runner = StubRunner(outputs: [
             output(json: Self.authoredResponse),
@@ -104,12 +125,13 @@ final class GittyTests: XCTestCase {
     private func makePullRequest(
         id: String,
         authored: Bool = true,
+        repository: String = "org/repo",
         failed: Set<String>,
         feedback: Set<String>,
         reviewRequested: Bool
     ) -> PullRequest {
         PullRequest(
-            id: id, number: 1, title: "Test", url: URL(string: "https://github.com/org/repo/pull/1")!, repository: "org/repo",
+            id: id, number: 1, title: "Test", url: URL(string: "https://github.com/org/repo/pull/1")!, repository: repository,
             isDraft: false, isAuthoredByViewer: authored, isReviewRequested: reviewRequested,
             ciState: failed.isEmpty ? .passing : .failing, failedCheckIDs: failed, feedbackIDs: feedback,
             reviewState: reviewRequested ? .reviewRequested : .waiting

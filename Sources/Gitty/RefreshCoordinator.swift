@@ -43,6 +43,11 @@ protocol AttentionAcknowledgementStoring: Sendable {
     func save(_ acknowledgements: [String: String])
 }
 
+protocol RepositoryFilterStoring: Sendable {
+    func load() -> [String]
+    func save(_ filters: [String])
+}
+
 final class UserDefaultsAttentionAcknowledgementStore: AttentionAcknowledgementStoring, @unchecked Sendable {
     private let defaults: UserDefaults
     private let key = "attentionAcknowledgements"
@@ -55,6 +60,21 @@ final class UserDefaultsAttentionAcknowledgementStore: AttentionAcknowledgementS
 
     func save(_ acknowledgements: [String: String]) {
         defaults.set(acknowledgements, forKey: key)
+    }
+}
+
+final class UserDefaultsRepositoryFilterStore: RepositoryFilterStoring, @unchecked Sendable {
+    private let defaults: UserDefaults
+    private let key = "repositoryFilters"
+
+    init(defaults: UserDefaults = .standard) { self.defaults = defaults }
+
+    func load() -> [String] {
+        defaults.stringArray(forKey: key) ?? []
+    }
+
+    func save(_ filters: [String]) {
+        defaults.set(filters, forKey: key)
     }
 }
 
@@ -82,24 +102,30 @@ final class GittyViewModel: ObservableObject {
     @Published private(set) var needsGhInstallation = false
     @Published private(set) var lastRefreshed: Date?
     @Published private(set) var attentionAcknowledgements: [String: String]
+    @Published private(set) var repositoryFilters: [String]
 
     private let github: any GitHubFetching
     private let notifications: any NotificationDelivering
     private let snapshots: any SnapshotStoring
     private let acknowledgements: any AttentionAcknowledgementStoring
+    private let filters: any RepositoryFilterStoring
+    private var fetchedPullRequests: [PullRequest] = []
     private var refreshTask: Task<Void, Never>?
 
     init(
         github: any GitHubFetching = GhClient(),
         notifications: any NotificationDelivering = SystemNotificationDeliverer(),
         snapshots: any SnapshotStoring = UserDefaultsSnapshotStore(),
-        acknowledgements: any AttentionAcknowledgementStoring = UserDefaultsAttentionAcknowledgementStore()
+        acknowledgements: any AttentionAcknowledgementStoring = UserDefaultsAttentionAcknowledgementStore(),
+        filters: any RepositoryFilterStoring = UserDefaultsRepositoryFilterStore()
     ) {
         self.github = github
         self.notifications = notifications
         self.snapshots = snapshots
         self.acknowledgements = acknowledgements
+        self.filters = filters
         self.attentionAcknowledgements = acknowledgements.load()
+        self.repositoryFilters = filters.load()
     }
 
     deinit { refreshTask?.cancel() }
@@ -125,6 +151,18 @@ final class GittyViewModel: ObservableObject {
         acknowledgements.save(attentionAcknowledgements)
     }
 
+    func addRepositoryFilter(_ filter: String) {
+        let normalizedFilter = filter.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !normalizedFilter.isEmpty, !repositoryFilters.contains(normalizedFilter) else { return }
+        repositoryFilters.append(normalizedFilter)
+        persistFilters()
+    }
+
+    func removeRepositoryFilter(_ filter: String) {
+        repositoryFilters.removeAll { $0 == filter }
+        persistFilters()
+    }
+
     func start() {
         guard refreshTask == nil else { return }
         refreshTask = Task { [weak self] in
@@ -142,7 +180,9 @@ final class GittyViewModel: ObservableObject {
         do {
             try await github.validateAuthentication()
             let latest = try await github.fetchPullRequests()
-            let currentSnapshot = NotificationSnapshot(pullRequests: latest)
+            fetchedPullRequests = latest
+            let visiblePullRequests = filteredPullRequests(latest, excluding: repositoryFilters)
+            let currentSnapshot = NotificationSnapshot(pullRequests: visiblePullRequests)
             if let previousSnapshot = snapshots.load() {
                 let changes = actionableChanges(from: previousSnapshot, to: latest)
                 if !changes.isEmpty { await notifications.deliver(changes) }
@@ -150,7 +190,7 @@ final class GittyViewModel: ObservableObject {
                 await notifications.requestAuthorization()
             }
             snapshots.save(currentSnapshot)
-            pullRequests = latest
+            pullRequests = visiblePullRequests
             lastRefreshed = .now
             errorMessage = nil
             needsGhInstallation = false
@@ -158,5 +198,10 @@ final class GittyViewModel: ObservableObject {
             errorMessage = error.localizedDescription
             needsGhInstallation = (error as? GhError) == .executableUnavailable
         }
+    }
+
+    private func persistFilters() {
+        filters.save(repositoryFilters)
+        pullRequests = filteredPullRequests(fetchedPullRequests, excluding: repositoryFilters)
     }
 }

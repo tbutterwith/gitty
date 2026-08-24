@@ -71,6 +71,23 @@ struct PullRequest: Identifiable, Equatable, Sendable {
     }
 }
 
+func filteredPullRequests(_ pullRequests: [PullRequest], excluding repositoryFilters: [String]) -> [PullRequest] {
+    pullRequests.filter { pullRequest in
+        !repositoryFilters.contains { repositoryMatchesFilter(pullRequest.repository, filter: $0) }
+    }
+}
+
+func repositoryMatchesFilter(_ repository: String, filter: String) -> Bool {
+    let normalizedRepository = repository.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    let normalizedFilter = filter.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+    guard !normalizedRepository.isEmpty, !normalizedFilter.isEmpty else { return false }
+    if normalizedFilter.hasSuffix("/*") {
+        return normalizedRepository.hasPrefix(String(normalizedFilter.dropLast()))
+    }
+    return normalizedRepository == normalizedFilter
+}
+
 struct NotificationSnapshot: Codable, Equatable, Sendable {
     var failedCheckIDs: Set<String>
     var reviewRequestIDs: Set<String>

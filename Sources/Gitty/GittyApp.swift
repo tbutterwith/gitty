@@ -23,7 +23,7 @@ struct GittyApp: App {
         .menuBarExtraStyle(.window)
 
         Settings {
-            GittySettingsView()
+            GittySettingsView(viewModel: viewModel)
         }
     }
 }
@@ -256,8 +256,41 @@ private struct PullRequestMenuItem: View {
 }
 
 private struct GittySettingsView: View {
+    @ObservedObject var viewModel: GittyViewModel
+    @State private var newRepositoryFilter = ""
+
+    private var canAddRepositoryFilter: Bool {
+        !newRepositoryFilter.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     var body: some View {
         Form {
+            Section("Repository filters") {
+                Text("Hide an exact repository with owner/repository, or all of an owner's repositories with owner/*.")
+                HStack {
+                    TextField("owner/repository or owner/*", text: $newRepositoryFilter)
+                    Button("Add") {
+                        viewModel.addRepositoryFilter(newRepositoryFilter)
+                        newRepositoryFilter = ""
+                    }
+                    .disabled(!canAddRepositoryFilter)
+                }
+
+                if viewModel.repositoryFilters.isEmpty {
+                    Text("No repositories are hidden.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(viewModel.repositoryFilters, id: \.self) { filter in
+                        HStack {
+                            Text(filter)
+                            Spacer()
+                            Button("Remove", role: .destructive) {
+                                viewModel.removeRepositoryFilter(filter)
+                            }
+                        }
+                    }
+                }
+            }
             Section("GitHub CLI") {
                 Text("Gitty uses your existing gh CLI session. If GitHub is unavailable, run gh auth login in Terminal and refresh Gitty.")
             }
