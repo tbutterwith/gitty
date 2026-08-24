@@ -93,16 +93,43 @@ struct NotificationSnapshot: Codable, Equatable, Sendable {
     var failedCheckIDs: Set<String>
     var reviewRequestIDs: Set<String>
     var feedbackIDs: Set<String>
+    /// Nil represents a snapshot written before Gitty tracked newly opened pull requests.
+    var observedPullRequestIDs: Set<String>?
 
     init(pullRequests: [PullRequest]) {
         failedCheckIDs = Set(pullRequests.filter(\.isAuthoredByViewer).flatMap(\.failedCheckIDs))
         reviewRequestIDs = Set(pullRequests.filter(\.isReviewRequested).map(\.id))
         feedbackIDs = Set(pullRequests.filter(\.isAuthoredByViewer).flatMap(\.feedbackIDs))
+        observedPullRequestIDs = Set(pullRequests.map(\.id))
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case failedCheckIDs
+        case reviewRequestIDs
+        case feedbackIDs
+        case observedPullRequestIDs
+    }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        failedCheckIDs = try container.decode(Set<String>.self, forKey: .failedCheckIDs)
+        reviewRequestIDs = try container.decode(Set<String>.self, forKey: .reviewRequestIDs)
+        feedbackIDs = try container.decode(Set<String>.self, forKey: .feedbackIDs)
+        observedPullRequestIDs = try container.decodeIfPresent(Set<String>.self, forKey: .observedPullRequestIDs)
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(failedCheckIDs, forKey: .failedCheckIDs)
+        try container.encode(reviewRequestIDs, forKey: .reviewRequestIDs)
+        try container.encode(feedbackIDs, forKey: .feedbackIDs)
+        try container.encodeIfPresent(observedPullRequestIDs, forKey: .observedPullRequestIDs)
     }
 }
 
 struct ActionableChange: Equatable, Sendable {
     enum Kind: Equatable, Sendable {
+        case newPullRequest
         case ciFailure
         case reviewRequest
         case feedback
@@ -113,6 +140,7 @@ struct ActionableChange: Equatable, Sendable {
 
     var title: String {
         switch kind {
+        case .newPullRequest: "New pull request"
         case .ciFailure: "CI failed"
         case .reviewRequest: "Review requested"
         case .feedback: "New PR feedback"
@@ -125,6 +153,9 @@ struct ActionableChange: Equatable, Sendable {
 func actionableChanges(from previous: NotificationSnapshot, to current: [PullRequest]) -> [ActionableChange] {
     current.flatMap { pullRequest in
         var changes: [ActionableChange] = []
+        if let observedPullRequestIDs = previous.observedPullRequestIDs, !observedPullRequestIDs.contains(pullRequest.id) {
+            changes.append(ActionableChange(kind: .newPullRequest, pullRequest: pullRequest))
+        }
         if pullRequest.isAuthoredByViewer && !pullRequest.failedCheckIDs.subtracting(previous.failedCheckIDs).isEmpty {
             changes.append(ActionableChange(kind: .ciFailure, pullRequest: pullRequest))
         }

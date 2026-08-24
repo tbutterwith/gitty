@@ -20,6 +20,28 @@ final class GittyTests: XCTestCase {
         XCTAssertTrue(actionableChanges(from: previous, to: [pullRequest]).isEmpty)
     }
 
+    func testNewPullRequestsProduceANotificationAfterTheInitialSnapshot() {
+        let existing = makePullRequest(id: "existing", failed: [], feedback: [], reviewRequested: false)
+        let new = makePullRequest(id: "new", failed: [], feedback: [], reviewRequested: false)
+        let previous = NotificationSnapshot(pullRequests: [existing])
+
+        let changes = actionableChanges(from: previous, to: [existing, new])
+
+        XCTAssertEqual(changes.map(\.kind), [.newPullRequest])
+        XCTAssertEqual(changes.first?.pullRequest.id, "new")
+    }
+
+    func testLegacySnapshotsDoNotAnnounceEveryExistingPullRequestAsNew() throws {
+        let legacySnapshot = try JSONDecoder().decode(
+            NotificationSnapshot.self,
+            from: Data(#"{"failedCheckIDs":[],"reviewRequestIDs":[],"feedbackIDs":[]}"#.utf8)
+        )
+        let pullRequest = makePullRequest(id: "existing", failed: [], feedback: [], reviewRequested: false)
+
+        XCTAssertNil(legacySnapshot.observedPullRequestIDs)
+        XCTAssertTrue(actionableChanges(from: legacySnapshot, to: [pullRequest]).isEmpty)
+    }
+
     func testSnapshotTracksOnlyAuthorFailuresAndFeedback() {
         let authored = makePullRequest(id: "authored", failed: ["check"], feedback: ["feedback"], reviewRequested: false)
         let reviewRequest = makePullRequest(id: "review", authored: false, failed: ["other-check"], feedback: ["other-feedback"], reviewRequested: true)

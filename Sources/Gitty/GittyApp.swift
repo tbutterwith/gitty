@@ -305,7 +305,7 @@ private struct GittySettingsView: View {
                 Text("Gitty refreshes on launch and every five minutes.")
             }
             Section("Notifications") {
-                Text("Gitty alerts you to new CI failures, review requests, and review feedback after its first successful refresh.")
+                Text("Gitty alerts you when new pull requests appear, CI fails, review is requested, or new feedback arrives after its first successful refresh.")
             }
         }
         .formStyle(.grouped)
