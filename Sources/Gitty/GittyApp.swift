@@ -302,7 +302,16 @@ private struct GittySettingsView: View {
                 Text("Gitty uses your existing gh CLI session. If GitHub is unavailable, run gh auth login in Terminal and refresh Gitty.")
             }
             Section("Refresh") {
-                Text("Gitty refreshes on launch and every five minutes.")
+                Picker("Check for updates", selection: Binding(
+                    get: { viewModel.refreshInterval },
+                    set: { viewModel.setRefreshInterval($0) }
+                )) {
+                    Text("Every minute").tag(TimeInterval(60))
+                    Text("Every 5 minutes").tag(TimeInterval(300))
+                    Text("Every 10 minutes").tag(TimeInterval(600))
+                }
+                Text("Gitty also refreshes when it launches.")
+                    .foregroundStyle(.secondary)
             }
             Section("Notifications") {
                 Text("Gitty alerts you when new pull requests appear, CI fails, review is requested, or new feedback arrives after its first successful refresh.")

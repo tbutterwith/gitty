@@ -48,6 +48,11 @@ protocol OrganizationFilterStoring: Sendable {
     func save(_ organizations: [String])
 }
 
+protocol RefreshIntervalStoring: Sendable {
+    func load() -> TimeInterval
+    func save(_ interval: TimeInterval)
+}
+
 final class UserDefaultsAttentionAcknowledgementStore: AttentionAcknowledgementStoring, @unchecked Sendable {
     private let defaults: UserDefaults
     private let key = "attentionAcknowledgements"
@@ -87,6 +92,24 @@ final class UserDefaultsOrganizationFilterStore: OrganizationFilterStoring, @unc
     }
 }
 
+final class UserDefaultsRefreshIntervalStore: RefreshIntervalStoring, @unchecked Sendable {
+    static let supportedIntervals: Set<TimeInterval> = [60, 300, 600]
+
+    private let defaults: UserDefaults
+    private let key = "refreshInterval"
+
+    init(defaults: UserDefaults = .standard) { self.defaults = defaults }
+
+    func load() -> TimeInterval {
+        let interval = defaults.double(forKey: key)
+        return Self.supportedIntervals.contains(interval) ? interval : 300
+    }
+
+    func save(_ interval: TimeInterval) {
+        defaults.set(interval, forKey: key)
+    }
+}
+
 final class UserDefaultsSnapshotStore: SnapshotStoring, @unchecked Sendable {
     private let defaults: UserDefaults
     private let key = "notificationSnapshot"
@@ -112,12 +135,14 @@ final class GittyViewModel: ObservableObject {
     @Published private(set) var lastRefreshed: Date?
     @Published private(set) var attentionAcknowledgements: [String: String]
     @Published private(set) var hiddenOrganizations: [String]
+    @Published private(set) var refreshInterval: TimeInterval
 
     private let github: any GitHubFetching
     private let notifications: any NotificationDelivering
     private let snapshots: any SnapshotStoring
     private let acknowledgements: any AttentionAcknowledgementStoring
     private let organizationFilters: any OrganizationFilterStoring
+    private let refreshIntervals: any RefreshIntervalStoring
     private var fetchedPullRequests: [PullRequest] = []
     private var refreshTask: Task<Void, Never>?
 
@@ -126,15 +151,18 @@ final class GittyViewModel: ObservableObject {
         notifications: any NotificationDelivering = SystemNotificationDeliverer(),
         snapshots: any SnapshotStoring = UserDefaultsSnapshotStore(),
         acknowledgements: any AttentionAcknowledgementStoring = UserDefaultsAttentionAcknowledgementStore(),
-        organizationFilters: any OrganizationFilterStoring = UserDefaultsOrganizationFilterStore()
+        organizationFilters: any OrganizationFilterStoring = UserDefaultsOrganizationFilterStore(),
+        refreshIntervals: any RefreshIntervalStoring = UserDefaultsRefreshIntervalStore()
     ) {
         self.github = github
         self.notifications = notifications
         self.snapshots = snapshots
         self.acknowledgements = acknowledgements
         self.organizationFilters = organizationFilters
+        self.refreshIntervals = refreshIntervals
         self.attentionAcknowledgements = acknowledgements.load()
         self.hiddenOrganizations = organizationFilters.load()
+        self.refreshInterval = refreshIntervals.load()
     }
 
     deinit { refreshTask?.cancel() }
@@ -176,12 +204,24 @@ final class GittyViewModel: ObservableObject {
         persistOrganizationFilters()
     }
 
+    func setRefreshInterval(_ interval: TimeInterval) {
+        guard UserDefaultsRefreshIntervalStore.supportedIntervals.contains(interval), interval != refreshInterval else { return }
+        refreshInterval = interval
+        refreshIntervals.save(interval)
+        restartRefreshSchedule()
+    }
+
     func start() {
         guard refreshTask == nil else { return }
+        startRefreshSchedule()
+    }
+
+    private func startRefreshSchedule() {
+        let interval = refreshInterval
         refreshTask = Task { [weak self] in
             while !Task.isCancelled {
                 await self?.refresh()
-                try? await Task.sleep(for: .seconds(300))
+                try? await Task.sleep(for: .seconds(interval))
             }
         }
     }
@@ -195,12 +235,11 @@ final class GittyViewModel: ObservableObject {
             let latest = try await github.fetchPullRequests()
             fetchedPullRequests = latest
             let visiblePullRequests = filteredPullRequests(latest, excluding: hiddenOrganizations)
+            await notifications.requestAuthorization()
             let currentSnapshot = NotificationSnapshot(pullRequests: visiblePullRequests)
             if let previousSnapshot = snapshots.load() {
                 let changes = actionableChanges(from: previousSnapshot, to: visiblePullRequests)
                 if !changes.isEmpty { await notifications.deliver(changes) }
-            } else {
-                await notifications.requestAuthorization()
             }
             snapshots.save(currentSnapshot)
             pullRequests = visiblePullRequests
@@ -216,5 +255,12 @@ final class GittyViewModel: ObservableObject {
     private func persistOrganizationFilters() {
         organizationFilters.save(hiddenOrganizations)
         pullRequests = filteredPullRequests(fetchedPullRequests, excluding: hiddenOrganizations)
+    }
+
+    private func restartRefreshSchedule() {
+        guard refreshTask != nil else { return }
+        refreshTask?.cancel()
+        refreshTask = nil
+        startRefreshSchedule()
     }
 }

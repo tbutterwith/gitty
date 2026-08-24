@@ -140,6 +140,28 @@ final class GittyTests: XCTestCase {
         ))
     }
 
+    func testRefreshRequestsNotificationAuthorizationWhenASnapshotAlreadyExists() async {
+        let old = makePullRequest(id: "1", failed: [], feedback: [], reviewRequested: false)
+        let failed = makePullRequest(id: "1", failed: ["check-1"], feedback: [], reviewRequested: false)
+        let notifications = RecordingNotificationDeliverer()
+        let viewModel = await MainActor.run {
+            GittyViewModel(
+                github: StaticGitHub(pullRequests: [failed]),
+                notifications: notifications,
+                snapshots: StaticSnapshotStore(snapshot: NotificationSnapshot(pullRequests: [old])),
+                acknowledgements: EmptyAcknowledgementStore(),
+                organizationFilters: EmptyOrganizationFilterStore()
+            )
+        }
+
+        await viewModel.refresh()
+
+        let authorizationRequests = await notifications.authorizationRequestCount()
+        let deliveredChanges = await notifications.deliveredChanges()
+        XCTAssertEqual(authorizationRequests, 1)
+        XCTAssertEqual(deliveredChanges.map(\.kind), [.ciFailure])
+    }
+
     private func makePullRequest(
         id: String,
         authored: Bool = true,
@@ -178,4 +200,38 @@ private actor StubRunner: CommandRunning {
         guard !outputs.isEmpty else { throw GhError.commandFailed("No stubbed response") }
         return outputs.removeFirst()
     }
+}
+
+private struct StaticGitHub: GitHubFetching {
+    let pullRequests: [PullRequest]
+
+    func validateAuthentication() async throws {}
+    func fetchPullRequests() async throws -> [PullRequest] { pullRequests }
+}
+
+private actor RecordingNotificationDeliverer: NotificationDelivering {
+    private var authorizationRequests = 0
+    private var changes: [ActionableChange] = []
+
+    func requestAuthorization() async { authorizationRequests += 1 }
+    func deliver(_ changes: [ActionableChange]) async { self.changes = changes }
+    func authorizationRequestCount() -> Int { authorizationRequests }
+    func deliveredChanges() -> [ActionableChange] { changes }
+}
+
+private struct StaticSnapshotStore: SnapshotStoring {
+    let snapshot: NotificationSnapshot
+
+    func load() -> NotificationSnapshot? { snapshot }
+    func save(_ snapshot: NotificationSnapshot) {}
+}
+
+private struct EmptyAcknowledgementStore: AttentionAcknowledgementStoring {
+    func load() -> [String: String] { [:] }
+    func save(_ acknowledgements: [String: String]) {}
+}
+
+private struct EmptyOrganizationFilterStore: OrganizationFilterStoring {
+    func load() -> [String] { [] }
+    func save(_ organizations: [String]) {}
 }
