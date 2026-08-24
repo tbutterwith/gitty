@@ -8,6 +8,7 @@ Gitty is a focused macOS menu-bar app for keeping up with GitHub pull requests: 
 ## What it does
 
 - Shows open pull requests you authored and pull requests awaiting your review.
+- Groups your green, unreviewed pull requests under **Waiting for review** so they are easy to chase.
 - Summarises each PR’s CI state: passing, running, failing, or no checks.
 - Notifies you when new pull requests appear, CI fails, review is requested, or new review feedback arrives.
 - Lets you acknowledge attention items; they return to their normal list and reappear only when something new changes.

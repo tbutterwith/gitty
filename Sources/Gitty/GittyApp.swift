@@ -35,7 +35,12 @@ private struct GittyMenu: View {
         viewModel.pullRequests.filter { $0.needsAttention && !viewModel.isAcknowledged($0) }
     }
     private var authored: [PullRequest] {
-        viewModel.pullRequests.filter { $0.isAuthoredByViewer && (!$0.needsAttention || viewModel.isAcknowledged($0)) }
+        viewModel.pullRequests.filter {
+            $0.isAuthoredByViewer && !$0.isWaitingForReview && (!$0.needsAttention || viewModel.isAcknowledged($0))
+        }
+    }
+    private var waitingForReview: [PullRequest] {
+        viewModel.pullRequests.filter(\.isWaitingForReview)
     }
     private var reviewRequests: [PullRequest] {
         viewModel.pullRequests.filter {
@@ -106,6 +111,12 @@ private struct GittyMenu: View {
                     if !attention.isEmpty {
                         PullRequestSection(
                             title: "Needs attention", pullRequests: attention, openPullRequest: openPullRequest,
+                            isAcknowledged: viewModel.isAcknowledged, toggleAcknowledgement: viewModel.toggleAcknowledgement
+                        )
+                    }
+                    if !waitingForReview.isEmpty {
+                        PullRequestSection(
+                            title: "Waiting for review", pullRequests: waitingForReview, openPullRequest: openPullRequest,
                             isAcknowledged: viewModel.isAcknowledged, toggleAcknowledgement: viewModel.toggleAcknowledgement
                         )
                     }

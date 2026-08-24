@@ -61,6 +61,10 @@ struct PullRequest: Identifiable, Equatable, Sendable {
         ciState == .failing || reviewState == .reviewRequested || reviewState == .changesRequested || reviewState == .feedback
     }
 
+    var isWaitingForReview: Bool {
+        isAuthoredByViewer && !isDraft && ciState == .passing && reviewState == .waiting
+    }
+
     /// Changes whenever a new actionable state appears, so acknowledgements do not hide later work.
     var attentionFingerprint: String {
         var components = failedCheckIDs.sorted().map { "check:\($0)" }
