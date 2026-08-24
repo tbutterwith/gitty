@@ -38,25 +38,21 @@ final class GittyTests: XCTestCase {
         XCTAssertNotEqual(initial.attentionFingerprint, later.attentionFingerprint)
     }
 
-    func testRepositoryFiltersExcludeExactRepositoriesAndOwnerNamespaces() {
+    func testOrganizationFiltersExcludeAllRepositoriesForAnOwner() {
         let personal = makePullRequest(id: "personal", repository: "tbutterwith/dot-journal", failed: [], feedback: [], reviewRequested: false)
         let enterprise = makePullRequest(id: "enterprise", repository: "veedstudio/app", failed: [], feedback: [], reviewRequested: false)
         let otherPersonal = makePullRequest(id: "other-personal", repository: "tbutterwith/gitty", failed: [], feedback: [], reviewRequested: false)
 
         XCTAssertEqual(
-            filteredPullRequests([personal, enterprise, otherPersonal], excluding: ["tbutterwith/dot-journal"]).map(\.id),
-            ["enterprise", "other-personal"]
-        )
-        XCTAssertEqual(
-            filteredPullRequests([personal, enterprise, otherPersonal], excluding: ["tbutterwith/*"]).map(\.id),
+            filteredPullRequests([personal, enterprise, otherPersonal], excluding: ["tbutterwith"]).map(\.id),
             ["enterprise"]
         )
     }
 
-    func testRepositoryFiltersAreCaseInsensitive() {
+    func testOrganizationFiltersAreCaseInsensitive() {
         let pullRequest = makePullRequest(id: "1", repository: "VeedStudio/App", failed: [], feedback: [], reviewRequested: false)
 
-        XCTAssertTrue(filteredPullRequests([pullRequest], excluding: ["veedstudio/*"]).isEmpty)
+        XCTAssertTrue(filteredPullRequests([pullRequest], excluding: ["veedstudio"]).isEmpty)
     }
 
     func testGhClientDecodesAndMergesTheTwoQueries() async throws {

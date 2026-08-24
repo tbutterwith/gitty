@@ -11,7 +11,7 @@ Gitty is a focused macOS menu-bar app for keeping up with GitHub pull requests: 
 - Summarises each PR’s CI state: passing, running, failing, or no checks.
 - Highlights failed/cancelled CI, review requests, and new review feedback.
 - Lets you acknowledge attention items; they return to their normal list and reappear only when something new changes.
-- Lets you hide individual repositories or entire owner namespaces from Preferences.
+- Lets you hide an organisation's pull requests from Preferences.
 - Refreshes on launch and every five minutes, with a manual refresh action.
 - Opens PRs in your default browser. Click a PR to open and dismiss Gitty, or hold <kbd>⌘</kbd> to keep the menu open.
 - Uses the locally installed `gh` CLI for every GitHub operation. Gitty never reads or stores a GitHub token.

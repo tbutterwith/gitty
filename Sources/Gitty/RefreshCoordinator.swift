@@ -43,9 +43,9 @@ protocol AttentionAcknowledgementStoring: Sendable {
     func save(_ acknowledgements: [String: String])
 }
 
-protocol RepositoryFilterStoring: Sendable {
+protocol OrganizationFilterStoring: Sendable {
     func load() -> [String]
-    func save(_ filters: [String])
+    func save(_ organizations: [String])
 }
 
 final class UserDefaultsAttentionAcknowledgementStore: AttentionAcknowledgementStoring, @unchecked Sendable {
@@ -63,18 +63,27 @@ final class UserDefaultsAttentionAcknowledgementStore: AttentionAcknowledgementS
     }
 }
 
-final class UserDefaultsRepositoryFilterStore: RepositoryFilterStoring, @unchecked Sendable {
+final class UserDefaultsOrganizationFilterStore: OrganizationFilterStoring, @unchecked Sendable {
     private let defaults: UserDefaults
-    private let key = "repositoryFilters"
+    private let key = "organizationFilters"
+    private let legacyKey = "repositoryFilters"
 
     init(defaults: UserDefaults = .standard) { self.defaults = defaults }
 
     func load() -> [String] {
-        defaults.stringArray(forKey: key) ?? []
+        if let organizations = defaults.stringArray(forKey: key) {
+            return organizations
+        }
+
+        let migratedOrganizations = Set((defaults.stringArray(forKey: legacyKey) ?? []).map(repositoryOwner)).sorted()
+        guard !migratedOrganizations.isEmpty else { return [] }
+        save(migratedOrganizations)
+        defaults.removeObject(forKey: legacyKey)
+        return migratedOrganizations
     }
 
-    func save(_ filters: [String]) {
-        defaults.set(filters, forKey: key)
+    func save(_ organizations: [String]) {
+        defaults.set(organizations, forKey: key)
     }
 }
 
@@ -102,13 +111,13 @@ final class GittyViewModel: ObservableObject {
     @Published private(set) var needsGhInstallation = false
     @Published private(set) var lastRefreshed: Date?
     @Published private(set) var attentionAcknowledgements: [String: String]
-    @Published private(set) var repositoryFilters: [String]
+    @Published private(set) var hiddenOrganizations: [String]
 
     private let github: any GitHubFetching
     private let notifications: any NotificationDelivering
     private let snapshots: any SnapshotStoring
     private let acknowledgements: any AttentionAcknowledgementStoring
-    private let filters: any RepositoryFilterStoring
+    private let organizationFilters: any OrganizationFilterStoring
     private var fetchedPullRequests: [PullRequest] = []
     private var refreshTask: Task<Void, Never>?
 
@@ -117,15 +126,15 @@ final class GittyViewModel: ObservableObject {
         notifications: any NotificationDelivering = SystemNotificationDeliverer(),
         snapshots: any SnapshotStoring = UserDefaultsSnapshotStore(),
         acknowledgements: any AttentionAcknowledgementStoring = UserDefaultsAttentionAcknowledgementStore(),
-        filters: any RepositoryFilterStoring = UserDefaultsRepositoryFilterStore()
+        organizationFilters: any OrganizationFilterStoring = UserDefaultsOrganizationFilterStore()
     ) {
         self.github = github
         self.notifications = notifications
         self.snapshots = snapshots
         self.acknowledgements = acknowledgements
-        self.filters = filters
+        self.organizationFilters = organizationFilters
         self.attentionAcknowledgements = acknowledgements.load()
-        self.repositoryFilters = filters.load()
+        self.hiddenOrganizations = organizationFilters.load()
     }
 
     deinit { refreshTask?.cancel() }
@@ -151,16 +160,20 @@ final class GittyViewModel: ObservableObject {
         acknowledgements.save(attentionAcknowledgements)
     }
 
-    func addRepositoryFilter(_ filter: String) {
-        let normalizedFilter = filter.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !normalizedFilter.isEmpty, !repositoryFilters.contains(normalizedFilter) else { return }
-        repositoryFilters.append(normalizedFilter)
-        persistFilters()
+    var availableOrganizations: [String] {
+        Set(fetchedPullRequests.map { repositoryOwner($0.repository) }).sorted()
     }
 
-    func removeRepositoryFilter(_ filter: String) {
-        repositoryFilters.removeAll { $0 == filter }
-        persistFilters()
+    func hideOrganization(_ organization: String) {
+        let normalized = normalizedOrganization(organization)
+        guard !normalized.isEmpty, !hiddenOrganizations.contains(normalized) else { return }
+        hiddenOrganizations.append(normalized)
+        persistOrganizationFilters()
+    }
+
+    func showOrganization(_ organization: String) {
+        hiddenOrganizations.removeAll { $0 == organization }
+        persistOrganizationFilters()
     }
 
     func start() {
@@ -181,10 +194,10 @@ final class GittyViewModel: ObservableObject {
             try await github.validateAuthentication()
             let latest = try await github.fetchPullRequests()
             fetchedPullRequests = latest
-            let visiblePullRequests = filteredPullRequests(latest, excluding: repositoryFilters)
+            let visiblePullRequests = filteredPullRequests(latest, excluding: hiddenOrganizations)
             let currentSnapshot = NotificationSnapshot(pullRequests: visiblePullRequests)
             if let previousSnapshot = snapshots.load() {
-                let changes = actionableChanges(from: previousSnapshot, to: latest)
+                let changes = actionableChanges(from: previousSnapshot, to: visiblePullRequests)
                 if !changes.isEmpty { await notifications.deliver(changes) }
             } else {
                 await notifications.requestAuthorization()
@@ -200,8 +213,8 @@ final class GittyViewModel: ObservableObject {
         }
     }
 
-    private func persistFilters() {
-        filters.save(repositoryFilters)
-        pullRequests = filteredPullRequests(fetchedPullRequests, excluding: repositoryFilters)
+    private func persistOrganizationFilters() {
+        organizationFilters.save(hiddenOrganizations)
+        pullRequests = filteredPullRequests(fetchedPullRequests, excluding: hiddenOrganizations)
     }
 }

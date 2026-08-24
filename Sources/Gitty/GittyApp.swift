@@ -257,35 +257,42 @@ private struct PullRequestMenuItem: View {
 
 private struct GittySettingsView: View {
     @ObservedObject var viewModel: GittyViewModel
-    @State private var newRepositoryFilter = ""
+    @State private var selectedOrganization = ""
 
-    private var canAddRepositoryFilter: Bool {
-        !newRepositoryFilter.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    private var availableOrganizations: [String] {
+        viewModel.availableOrganizations.filter { !viewModel.hiddenOrganizations.contains($0) }
     }
 
     var body: some View {
         Form {
-            Section("Repository filters") {
-                Text("Hide an exact repository with owner/repository, or all of an owner's repositories with owner/*.")
+            Section("Organisation filters") {
+                Text("Hide pull requests from an organisation. Organisations are discovered from your open pull requests.")
                 HStack {
-                    TextField("owner/repository or owner/*", text: $newRepositoryFilter)
-                    Button("Add") {
-                        viewModel.addRepositoryFilter(newRepositoryFilter)
-                        newRepositoryFilter = ""
+                    Picker("Organisation", selection: $selectedOrganization) {
+                        Text("Choose an organisation").tag("")
+                        ForEach(availableOrganizations, id: \.self) { organization in
+                            Text(organization).tag(organization)
+                        }
                     }
-                    .disabled(!canAddRepositoryFilter)
+                    .labelsHidden()
+
+                    Button("Hide") {
+                        viewModel.hideOrganization(selectedOrganization)
+                        selectedOrganization = ""
+                    }
+                    .disabled(selectedOrganization.isEmpty)
                 }
 
-                if viewModel.repositoryFilters.isEmpty {
-                    Text("No repositories are hidden.")
+                if viewModel.hiddenOrganizations.isEmpty {
+                    Text("No organisations are hidden.")
                         .foregroundStyle(.secondary)
                 } else {
-                    ForEach(viewModel.repositoryFilters, id: \.self) { filter in
+                    ForEach(viewModel.hiddenOrganizations, id: \.self) { organization in
                         HStack {
-                            Text(filter)
+                            Text(organization)
                             Spacer()
                             Button("Remove", role: .destructive) {
-                                viewModel.removeRepositoryFilter(filter)
+                                viewModel.showOrganization(organization)
                             }
                         }
                     }

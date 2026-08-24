@@ -71,21 +71,22 @@ struct PullRequest: Identifiable, Equatable, Sendable {
     }
 }
 
-func filteredPullRequests(_ pullRequests: [PullRequest], excluding repositoryFilters: [String]) -> [PullRequest] {
+func filteredPullRequests(_ pullRequests: [PullRequest], excluding organizations: [String]) -> [PullRequest] {
     pullRequests.filter { pullRequest in
-        !repositoryFilters.contains { repositoryMatchesFilter(pullRequest.repository, filter: $0) }
+        !organizations.contains { repositoryOwner(pullRequest.repository) == normalizedOrganization($0) }
     }
 }
 
-func repositoryMatchesFilter(_ repository: String, filter: String) -> Bool {
-    let normalizedRepository = repository.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-    let normalizedFilter = filter.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+func repositoryOwner(_ repository: String) -> String {
+    repository
+        .split(separator: "/", maxSplits: 1)
+        .first
+        .map(String.init)
+        .map(normalizedOrganization) ?? ""
+}
 
-    guard !normalizedRepository.isEmpty, !normalizedFilter.isEmpty else { return false }
-    if normalizedFilter.hasSuffix("/*") {
-        return normalizedRepository.hasPrefix(String(normalizedFilter.dropLast()))
-    }
-    return normalizedRepository == normalizedFilter
+func normalizedOrganization(_ organization: String) -> String {
+    organization.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 }
 
 struct NotificationSnapshot: Codable, Equatable, Sendable {
