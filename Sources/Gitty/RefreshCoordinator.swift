@@ -14,6 +14,8 @@ protocol NotificationDelivering: Sendable {
 }
 
 struct SystemNotificationDeliverer: NotificationDelivering {
+    static let alertSoundFilename = "GittyChime.aiff"
+
     func requestAuthorization() async {
         guard NotificationEnvironment.supportsSystemNotifications() else { return }
         _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound])
@@ -25,7 +27,7 @@ struct SystemNotificationDeliverer: NotificationDelivering {
             let content = UNMutableNotificationContent()
             content.title = change.title
             content.body = change.body
-            content.sound = .default
+            content.sound = UNNotificationSound(named: UNNotificationSoundName(Self.alertSoundFilename))
             content.userInfo = ["url": change.pullRequest.url.absoluteString]
             let request = UNNotificationRequest(identifier: "\(change.kind)-\(change.pullRequest.id)", content: content, trigger: nil)
             try? await UNUserNotificationCenter.current().add(request)
