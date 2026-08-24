@@ -60,6 +60,18 @@ final class GittyTests: XCTestCase {
         XCTAssertNotEqual(initial.attentionFingerprint, later.attentionFingerprint)
     }
 
+    func testWaitingForReviewRequiresAnAuthoredGreenNonDraftPullRequestWithNoReview() {
+        let waiting = makePullRequest(id: "waiting", failed: [], feedback: [], reviewRequested: false)
+        let failing = makePullRequest(id: "failing", failed: ["check"], feedback: [], reviewRequested: false)
+        let reviewed = makePullRequest(id: "reviewed", failed: [], feedback: [], reviewRequested: false, reviewState: .approved)
+        let requested = makePullRequest(id: "requested", authored: false, failed: [], feedback: [], reviewRequested: false)
+
+        XCTAssertTrue(waiting.isWaitingForReview)
+        XCTAssertFalse(failing.isWaitingForReview)
+        XCTAssertFalse(reviewed.isWaitingForReview)
+        XCTAssertFalse(requested.isWaitingForReview)
+    }
+
     func testOrganizationFiltersExcludeAllRepositoriesForAnOwner() {
         let personal = makePullRequest(id: "personal", repository: "tbutterwith/dot-journal", failed: [], feedback: [], reviewRequested: false)
         let enterprise = makePullRequest(id: "enterprise", repository: "veedstudio/app", failed: [], feedback: [], reviewRequested: false)
@@ -168,13 +180,14 @@ final class GittyTests: XCTestCase {
         repository: String = "org/repo",
         failed: Set<String>,
         feedback: Set<String>,
-        reviewRequested: Bool
+        reviewRequested: Bool,
+        reviewState: ReviewState? = nil
     ) -> PullRequest {
         PullRequest(
             id: id, number: 1, title: "Test", url: URL(string: "https://github.com/org/repo/pull/1")!, repository: repository,
             isDraft: false, isAuthoredByViewer: authored, isReviewRequested: reviewRequested,
             ciState: failed.isEmpty ? .passing : .failing, failedCheckIDs: failed, feedbackIDs: feedback,
-            reviewState: reviewRequested ? .reviewRequested : .waiting
+            reviewState: reviewState ?? (reviewRequested ? .reviewRequested : .waiting)
         )
     }
 
