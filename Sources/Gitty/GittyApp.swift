@@ -1,9 +1,22 @@
 import AppKit
 import SwiftUI
+import UserNotifications
 
-final class GittyAppDelegate: NSObject, NSApplicationDelegate {
+final class GittyAppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        UNUserNotificationCenter.current().delegate = self
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping @Sendable () -> Void
+    ) {
+        defer { completionHandler() }
+        guard response.actionIdentifier == UNNotificationDefaultActionIdentifier,
+              let url = pullRequestURL(from: response.notification.request.content.userInfo) else { return }
+        NSWorkspace.shared.open(url)
     }
 }
 

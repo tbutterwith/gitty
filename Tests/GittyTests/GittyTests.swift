@@ -2,6 +2,17 @@ import XCTest
 @testable import Gitty
 
 final class GittyTests: XCTestCase {
+    func testPullRequestURLReadsNotificationMetadata() {
+        let url = pullRequestURL(from: ["url": "https://github.com/acme/gitty/pull/42"])
+
+        XCTAssertEqual(url, URL(string: "https://github.com/acme/gitty/pull/42"))
+    }
+
+    func testPullRequestURLRejectsMissingOrInvalidNotificationMetadata() {
+        XCTAssertNil(pullRequestURL(from: [:]))
+        XCTAssertNil(pullRequestURL(from: ["url": "not a URL"]))
+    }
+
     func testActionableChangesOnlyContainNewEvents() {
         let old = makePullRequest(id: "1", failed: [], feedback: [], reviewRequested: false)
         let previous = NotificationSnapshot(pullRequests: [old])
