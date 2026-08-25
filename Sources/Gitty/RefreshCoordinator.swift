@@ -2,6 +2,14 @@ import Foundation
 import Combine
 import UserNotifications
 
+func pullRequestURL(from notificationUserInfo: [AnyHashable: Any]) -> URL? {
+    guard let urlString = notificationUserInfo["url"] as? String,
+          let url = URL(string: urlString),
+          url.scheme != nil,
+          url.host != nil else { return nil }
+    return url
+}
+
 enum NotificationEnvironment {
     static func supportsSystemNotifications(bundleURL: URL = Bundle.main.bundleURL) -> Bool {
         bundleURL.pathExtension.caseInsensitiveCompare("app") == .orderedSame
