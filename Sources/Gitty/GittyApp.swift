@@ -213,31 +213,30 @@ private struct PullRequestMenuItem: View {
     }
 
     var body: some View {
-        ZStack {
-            Button { openPullRequest(pullRequest) } label: {
-                Color.clear
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-
-            HStack(alignment: .top, spacing: 8) {
-                if isHovered, canAcknowledge, let toggleAcknowledgement {
-                    Button {
-                        toggleAcknowledgement(pullRequest)
-                    } label: {
-                        Image(systemName: isAcknowledged ? "checkmark.circle.fill" : "checkmark.circle")
-                            .foregroundStyle(isAcknowledged ? .secondary : .primary)
-                            .frame(width: 18, height: 18)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .help(isAcknowledged ? "Mark as unacknowledged" : "Acknowledge")
-                    .accessibilityLabel(isAcknowledged ? "Mark \(pullRequest.title) as unacknowledged" : "Acknowledge \(pullRequest.title)")
-                } else {
+        HStack(alignment: .top, spacing: 8) {
+            if isHovered, canAcknowledge, let toggleAcknowledgement {
+                Button {
+                    toggleAcknowledgement(pullRequest)
+                } label: {
+                    Image(systemName: isAcknowledged ? "checkmark.circle.fill" : "checkmark.circle")
+                        .foregroundStyle(isAcknowledged ? .secondary : .primary)
+                        .frame(width: 18, height: 18)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(isAcknowledged ? "Mark as unacknowledged" : "Acknowledge")
+                .accessibilityLabel(isAcknowledged ? "Mark \(pullRequest.title) as unacknowledged" : "Acknowledge \(pullRequest.title)")
+            } else {
+                Button { openPullRequest(pullRequest) } label: {
                     Image(systemName: pullRequest.ciState.symbol)
                         .foregroundStyle(pullRequest.ciState == .failing ? .red : pullRequest.ciState == .passing ? .green : .secondary)
                         .frame(width: 18, height: 18)
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Open \(pullRequest.title)")
+            }
+
+            Button { openPullRequest(pullRequest) } label: {
                 VStack(alignment: .leading, spacing: 1) {
                     Text("\(pullRequest.repository) #\(pullRequest.number)")
                         .font(.caption)
@@ -256,12 +255,13 @@ private struct PullRequestMenuItem: View {
                 }
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 2)
-            .allowsHitTesting(canAcknowledge && isHovered)
+            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+            .accessibilityLabel("Open \(pullRequest.title)")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
+        .padding(.horizontal, 14)
+        .padding(.vertical, 2)
         .onHover { isHovered = $0 }
     }
 }
