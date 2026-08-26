@@ -16,7 +16,9 @@ final class GittyAppDelegate: NSObject, NSApplicationDelegate, UNUserNotificatio
         defer { completionHandler() }
         guard response.actionIdentifier == UNNotificationDefaultActionIdentifier,
               let url = pullRequestURL(from: response.notification.request.content.userInfo) else { return }
-        NSWorkspace.shared.open(url)
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        NSWorkspace.shared.open(url, configuration: configuration)
     }
 }
 
