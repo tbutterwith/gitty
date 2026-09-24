@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 import UserNotifications
 
@@ -221,12 +222,16 @@ private struct PullRequestSection: View {
     }
 }
 
+private final class PullRequestMenuItemState: ObservableObject {
+    @Published var isHovered = false
+}
+
 private struct PullRequestMenuItem: View {
     let pullRequest: PullRequest
     let openPullRequest: (PullRequest) -> Void
     let isAcknowledged: Bool
     let toggleAcknowledgement: ((PullRequest) -> Void)?
-    @State private var isHovered = false
+    @StateObject private var state = PullRequestMenuItemState()
 
     private var canAcknowledge: Bool {
         pullRequest.needsAttention && toggleAcknowledgement != nil
@@ -234,7 +239,7 @@ private struct PullRequestMenuItem: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
-            if isHovered, canAcknowledge, let toggleAcknowledgement {
+            if state.isHovered, canAcknowledge, let toggleAcknowledgement {
                 Button {
                     toggleAcknowledgement(pullRequest)
                 } label: {
@@ -282,13 +287,17 @@ private struct PullRequestMenuItem: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 14)
         .padding(.vertical, 2)
-        .onHover { isHovered = $0 }
+        .onHover { state.isHovered = $0 }
     }
+}
+
+private final class GittySettingsState: ObservableObject {
+    @Published var selectedOrganization = ""
 }
 
 private struct GittySettingsView: View {
     @ObservedObject var viewModel: GittyViewModel
-    @State private var selectedOrganization = ""
+    @StateObject private var state = GittySettingsState()
 
     private var availableOrganizations: [String] {
         viewModel.availableOrganizations.filter { !viewModel.hiddenOrganizations.contains($0) }
@@ -299,7 +308,7 @@ private struct GittySettingsView: View {
             Section("Organisation filters") {
                 Text("Hide pull requests from an organisation. Organisations are discovered from your open pull requests.")
                 HStack {
-                    Picker("Organisation", selection: $selectedOrganization) {
+                    Picker("Organisation", selection: $state.selectedOrganization) {
                         Text("Choose an organisation").tag("")
                         ForEach(availableOrganizations, id: \.self) { organization in
                             Text(organization).tag(organization)
@@ -308,10 +317,10 @@ private struct GittySettingsView: View {
                     .labelsHidden()
 
                     Button("Hide") {
-                        viewModel.hideOrganization(selectedOrganization)
-                        selectedOrganization = ""
+                        viewModel.hideOrganization(state.selectedOrganization)
+                        state.selectedOrganization = ""
                     }
-                    .disabled(selectedOrganization.isEmpty)
+                    .disabled(state.selectedOrganization.isEmpty)
                 }
 
                 if viewModel.hiddenOrganizations.isEmpty {
