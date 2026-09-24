@@ -65,6 +65,11 @@ struct PullRequest: Identifiable, Equatable, Sendable {
         isAuthoredByViewer && !isDraft && ciState == .passing && reviewState == .waiting
     }
 
+    /// Slack mrkdwn that displays the PR title as a hyperlink when pasted into a message.
+    var slackLink: String {
+        "<\(url.absoluteString)|\(title)>"
+    }
+
     /// Changes whenever a new actionable state appears, so acknowledgements do not hide later work.
     var attentionFingerprint: String {
         var components = failedCheckIDs.sorted().map { "check:\($0)" }

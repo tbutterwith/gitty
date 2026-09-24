@@ -154,8 +154,13 @@ private struct GittyMenu: View {
     }
 
     private func openPullRequest(_ pullRequest: PullRequest) {
+        if NSEvent.modifierFlags.contains(.command) {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(pullRequest.slackLink, forType: .string)
+            return
+        }
+
         NSWorkspace.shared.open(pullRequest.url)
-        guard !NSEvent.modifierFlags.contains(.command) else { return }
         NSApp.keyWindow?.orderOut(nil)
     }
 }

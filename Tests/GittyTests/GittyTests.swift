@@ -2,6 +2,12 @@ import XCTest
 @testable import Gitty
 
 final class GittyTests: XCTestCase {
+    func testPullRequestSlackLinkUsesTheTitleAsTheLinkText() {
+        let pullRequest = makePullRequest(id: "1", failed: [], feedback: [], reviewRequested: false)
+
+        XCTAssertEqual(pullRequest.slackLink, "<https://github.com/org/repo/pull/1|Test>")
+    }
+
     func testPullRequestURLReadsNotificationMetadata() {
         let url = pullRequestURL(from: ["url": "https://github.com/acme/gitty/pull/42"])
 
