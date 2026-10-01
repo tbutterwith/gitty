@@ -156,8 +156,7 @@ private struct GittyMenu: View {
 
     private func openPullRequest(_ pullRequest: PullRequest) {
         if NSEvent.modifierFlags.contains(.command) {
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(pullRequest.slackLink, forType: .string)
+            copyPullRequestLink(pullRequest)
             return
         }
 

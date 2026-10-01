@@ -1,11 +1,33 @@
+import AppKit
 import XCTest
 @testable import Gitty
 
 final class GittyTests: XCTestCase {
-    func testPullRequestSlackLinkUsesTheTitleAsTheLinkText() {
+    func testPullRequestPasteboardItemWritesHTMLAnchorAndPlainTextFallback() throws {
         let pullRequest = makePullRequest(id: "1", failed: [], feedback: [], reviewRequested: false)
 
-        XCTAssertEqual(pullRequest.slackLink, "<https://github.com/org/repo/pull/1|Test>")
+        let item = pullRequestPasteboardItem(pullRequest)
+
+        XCTAssertEqual(item.string(forType: .string), "Test https://github.com/org/repo/pull/1")
+        let htmlData = try XCTUnwrap(item.data(forType: .html))
+        XCTAssertEqual(
+            String(decoding: htmlData, as: UTF8.self),
+            #"<a href="https://github.com/org/repo/pull/1">Test</a>"#
+        )
+    }
+
+    func testPullRequestPasteboardItemEscapesHTMLSpecialCharacters() throws {
+        let pullRequest = makePullRequest(
+            id: "1", title: #"Fix <seed> & "quote""#, failed: [], feedback: [], reviewRequested: false
+        )
+
+        let item = pullRequestPasteboardItem(pullRequest)
+
+        let htmlData = try XCTUnwrap(item.data(forType: .html))
+        XCTAssertEqual(
+            String(decoding: htmlData, as: UTF8.self),
+            #"<a href="https://github.com/org/repo/pull/1">Fix &lt;seed&gt; &amp; &quot;quote&quot;</a>"#
+        )
     }
 
     func testPullRequestURLReadsNotificationMetadata() {
@@ -193,6 +215,7 @@ final class GittyTests: XCTestCase {
 
     private func makePullRequest(
         id: String,
+        title: String = "Test",
         authored: Bool = true,
         repository: String = "org/repo",
         failed: Set<String>,
@@ -201,7 +224,7 @@ final class GittyTests: XCTestCase {
         reviewState: ReviewState? = nil
     ) -> PullRequest {
         PullRequest(
-            id: id, number: 1, title: "Test", url: URL(string: "https://github.com/org/repo/pull/1")!, repository: repository,
+            id: id, number: 1, title: title, url: URL(string: "https://github.com/org/repo/pull/1")!, repository: repository,
             isDraft: false, isAuthoredByViewer: authored, isReviewRequested: reviewRequested,
             ciState: failed.isEmpty ? .passing : .failing, failedCheckIDs: failed, feedbackIDs: feedback,
             reviewState: reviewState ?? (reviewRequested ? .reviewRequested : .waiting)
