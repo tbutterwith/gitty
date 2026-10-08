@@ -1,10 +1,11 @@
 import AppKit
 
-func copyPullRequestLink(_ pullRequest: PullRequest, to pasteboard: NSPasteboard = .general) {
+@discardableResult
+func copyPullRequestLink(_ pullRequest: PullRequest, to pasteboard: NSPasteboard = .general) -> Bool {
     let item = pullRequestPasteboardItem(pullRequest)
 
     pasteboard.clearContents()
-    pasteboard.writeObjects([item])
+    return pasteboard.writeObjects([item])
 }
 
 func pullRequestPasteboardItem(_ pullRequest: PullRequest) -> NSPasteboardItem {
