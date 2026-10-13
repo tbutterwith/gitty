@@ -44,13 +44,8 @@ struct GittyApp: App {
     }
 }
 
-private final class GittyMenuState: ObservableObject {
-    @Published var copyConfirmationID: UUID?
-}
-
 private struct GittyMenu: View {
     @ObservedObject var viewModel: GittyViewModel
-    @StateObject private var state = GittyMenuState()
 
     private var attention: [PullRequest] {
         viewModel.pullRequests.filter { $0.needsAttention && !viewModel.isAcknowledged($0) }
@@ -72,18 +67,6 @@ private struct GittyMenu: View {
     var body: some View {
         VStack(spacing: 0) {
             content
-                .overlay(alignment: .bottom) {
-                    if state.copyConfirmationID != nil {
-                        Label("Link copied", systemImage: "checkmark.circle.fill")
-                            .font(.callout.weight(.medium))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(.regularMaterial, in: Capsule())
-                            .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
-                            .padding(.bottom, 10)
-                            .allowsHitTesting(false)
-                    }
-                }
             Divider()
             VStack(spacing: 0) {
                 HStack {
@@ -120,17 +103,6 @@ private struct GittyMenu: View {
             .padding(.bottom, 6)
         }
         .task { viewModel.start() }
-        .task(id: state.copyConfirmationID) {
-            guard let confirmationID = state.copyConfirmationID else { return }
-            do {
-                try await Task.sleep(for: .seconds(2))
-            } catch {
-                return
-            }
-            guard state.copyConfirmationID == confirmationID else { return }
-            state.copyConfirmationID = nil
-        }
-        .onDisappear { state.copyConfirmationID = nil }
     }
 
     @ViewBuilder private var content: some View {
@@ -138,8 +110,10 @@ private struct GittyMenu: View {
             VStack(spacing: 12) {
                 ContentUnavailableView("GitHub unavailable", systemImage: "exclamationmark.triangle", description: Text(error))
                 if viewModel.needsGhInstallation {
-                    Link("Install GitHub CLI", destination: URL(string: "https://cli.github.com/")!)
-                        .buttonStyle(.borderedProminent)
+                    Button("Install GitHub CLI") {
+                        openLink(URL(string: "https://cli.github.com/")!)
+                    }
+                    .buttonStyle(.borderedProminent)
                 }
             }
             .padding()
@@ -183,15 +157,21 @@ private struct GittyMenu: View {
     }
 
     private func openPullRequest(_ pullRequest: PullRequest) {
-        if NSEvent.modifierFlags.contains(.command) {
-            if copyPullRequestLink(pullRequest) {
-                state.copyConfirmationID = UUID()
-            }
-            return
-        }
+        // Capture the menu window before opening the browser changes focus.
+        let menuWindow = NSApp.currentEvent?.window ?? NSApp.keyWindow
+        defer { menuWindow?.orderOut(nil) }
 
-        NSWorkspace.shared.open(pullRequest.url)
-        NSApp.keyWindow?.orderOut(nil)
+        if !NSEvent.modifierFlags.intersection([.command, .control]).isEmpty {
+            copyPullRequestLink(pullRequest)
+        } else {
+            NSWorkspace.shared.open(pullRequest.url)
+        }
+    }
+
+    private func openLink(_ url: URL) {
+        let menuWindow = NSApp.currentEvent?.window ?? NSApp.keyWindow
+        defer { menuWindow?.orderOut(nil) }
+        NSWorkspace.shared.open(url)
     }
 }
 
